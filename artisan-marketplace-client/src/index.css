@@ -1,0 +1,165 @@
+:root {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #2b2420;
+  background-color: #faf6f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+a {
+  color: inherit;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: #3f2d20;
+  color: #fff;
+}
+
+.navbar .brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #fff;
+}
+
+.navbar nav {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.navbar a {
+  text-decoration: none;
+  color: #f0e6d8;
+}
+
+.navbar button {
+  background: none;
+  border: 1px solid #f0e6d8;
+  color: #f0e6d8;
+  border-radius: 4px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.hero {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.hero h1 {
+  font-size: 2.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #eee0cf;
+}
+
+.card h3 {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.price {
+  font-weight: 700;
+  color: #7a4a24;
+}
+
+.btn {
+  display: inline-block;
+  background: #7a4a24;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid #7a4a24;
+  color: #7a4a24;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 360px;
+}
+
+input {
+  padding: 0.5rem;
+  border: 1px solid #d8cbb8;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.cart-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e6dbc9;
+}
+
+.error {
+  color: #b3261e;
+}
+
+.category-pill {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: #eee0cf;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.category-pill.active {
+  background: #7a4a24;
+  color: #fff;
+}

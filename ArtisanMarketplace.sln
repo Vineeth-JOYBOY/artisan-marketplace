@@ -1,0 +1,40 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArtisanMarketplace.IdentityService", "ArtisanMarketplace.IdentityService\ArtisanMarketplace.IdentityService.csproj", "{40FE877B-41E5-4A8B-BDB1-EF2B4DF5EF40}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArtisanMarketplace.ProductService", "ArtisanMarketplace.ProductService\ArtisanMarketplace.ProductService.csproj", "{CC6BA52B-C744-4209-8507-3077F7C10B9B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArtisanMarketplace.OrderService", "ArtisanMarketplace.OrderService\ArtisanMarketplace.OrderService.csproj", "{A576C942-6EF1-4039-B92B-90D7EC158FD5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArtisanMarketplace.ApiGateway", "ArtisanMarketplace.ApiGateway\ArtisanMarketplace.ApiGateway.csproj", "{9AC73F06-F7DE-495C-B64C-31BF13A0BE1D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{40FE877B-41E5-4A8B-BDB1-EF2B4DF5EF40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40FE877B-41E5-4A8B-BDB1-EF2B4DF5EF40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40FE877B-41E5-4A8B-BDB1-EF2B4DF5EF40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40FE877B-41E5-4A8B-BDB1-EF2B4DF5EF40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC6BA52B-C744-4209-8507-3077F7C10B9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC6BA52B-C744-4209-8507-3077F7C10B9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC6BA52B-C744-4209-8507-3077F7C10B9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC6BA52B-C744-4209-8507-3077F7C10B9B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A576C942-6EF1-4039-B92B-90D7EC158FD5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A576C942-6EF1-4039-B92B-90D7EC158FD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A576C942-6EF1-4039-B92B-90D7EC158FD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A576C942-6EF1-4039-B92B-90D7EC158FD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9AC73F06-F7DE-495C-B64C-31BF13A0BE1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9AC73F06-F7DE-495C-B64C-31BF13A0BE1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9AC73F06-F7DE-495C-B64C-31BF13A0BE1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9AC73F06-F7DE-495C-B64C-31BF13A0BE1D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
