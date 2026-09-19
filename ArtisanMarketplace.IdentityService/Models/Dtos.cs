@@ -7,3 +7,7 @@ public record LoginRequest(string Email, string Password);
 public record UserResponse(Guid Id, string Email, string FullName);
 
 public record AuthResponse(string Token, DateTime ExpiresAt, UserResponse User);
+
+public record ForgotPasswordRequest(string Email);
+
+public record ResetPasswordRequest(string Email, string Token, string NewPassword);

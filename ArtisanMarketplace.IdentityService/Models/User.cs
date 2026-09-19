@@ -7,4 +7,6 @@ public class User
     public string PasswordHash { get; set; } = default!;
     public string FullName { get; set; } = default!;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
 }
