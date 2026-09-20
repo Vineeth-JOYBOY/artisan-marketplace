@@ -36,12 +36,47 @@ Each service's `appsettings.json` already points at a local SQLite file
 (`Data Source=<servicename>.db`), created automatically on first run via
 `Database.EnsureCreated()` — no `dotnet ef database update` step needed.
 
-Identity and Order services share a dev JWT signing key in
-`appsettings.json` (`Jwt:Key`). It's fine for local dev; override it for
-anything beyond your own machine:
+### Secrets (required — services won't start without these)
+
+`Jwt:Key` and `Internal:ServiceKey` are **not** in `appsettings.json` —
+secrets never go in a file that's tracked by git. Instead they live in each
+project's local [user-secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets)
+store (outside the repo, never committed). On a fresh clone, set them up
+once:
+
 ```bash
-export Jwt__Key="a-much-longer-random-secret"
+JWT_KEY=$(openssl rand -base64 48)
+INTERNAL_KEY=$(openssl rand -base64 48)
+
+for svc in ArtisanMarketplace.IdentityService ArtisanMarketplace.OrderService ArtisanMarketplace.ProductService; do
+  (cd $svc && dotnet user-secrets init && dotnet user-secrets set "Jwt:Key" "$JWT_KEY")
+done
+
+for svc in ArtisanMarketplace.OrderService ArtisanMarketplace.ProductService; do
+  (cd $svc && dotnet user-secrets set "Internal:ServiceKey" "$INTERNAL_KEY")
+done
 ```
+
+- `Jwt:Key` must be the **same value** across Identity/Order/Product (they
+  validate each other's tokens with it).
+- `Internal:ServiceKey` must be the **same value** across Order/Product
+  (OrderService uses it to call ProductService's internal stock-adjustment
+  endpoint — see below).
+- If a service starts without its required secret configured, it fails
+  immediately with a clear error telling you which `dotnet user-secrets set`
+  command to run — that's intentional, not a bug.
+- For anything beyond your own machine, use environment variables instead
+  of user-secrets: `Jwt__Key` and `Internal__ServiceKey`.
+
+### Internal-only endpoints
+
+ProductService exposes `/internal/products/{id}/adjust-stock` for
+OrderService to reserve/release stock during checkout. It's under
+`/internal/*`, which the API Gateway (`ocelot.json`) has no route for — so
+it's unreachable through the gateway by design, not just by the
+`X-Internal-Service-Key` check inside it. Don't add a gateway route for
+`/internal/*`.
+
 Stripe isn't wired up yet (matches the original README — checkout is a stub
 that just records the order).
 

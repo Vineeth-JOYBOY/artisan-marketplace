@@ -5,3 +5,7 @@ public record ProductRequest(string Name, string Description, decimal Price, str
 public record CategoryResponse(int Id, string Name, string Slug);
 
 public record ProductResponse(int Id, string Name, string Description, decimal Price, string ImageUrl, int StockQuantity, CategoryResponse Category);
+
+public record AdjustStockRequest(int Delta);
+
+public record StockResponse(int Id, int StockQuantity);

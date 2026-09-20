@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +13,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHttpClient("ProductService", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:ProductService"]!);
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -21,6 +28,8 @@ builder.Services.AddCors(options =>
 });
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException(
+    "Jwt:Key is not configured. Run 'dotnet user-secrets set \"Jwt:Key\" \"<value>\"' in this project for local dev, or set the Jwt__Key environment variable.");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -33,10 +42,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtSection["Issuer"],
             ValidAudience = jwtSection["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Key"]!))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 builder.Services.AddAuthorization();
+
+var internalServiceKey = builder.Configuration["Internal:ServiceKey"] ?? throw new InvalidOperationException(
+    "Internal:ServiceKey is not configured. Run 'dotnet user-secrets set \"Internal:ServiceKey\" \"<value>\"' in this project for local dev, or set the Internal__ServiceKey environment variable.");
 
 var app = builder.Build();
 
@@ -63,23 +75,83 @@ static OrderResponse ToResponse(Order o) => new(
 static Guid GetUserId(ClaimsPrincipal user) =>
     Guid.Parse(user.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)!.Value);
 
-app.MapPost("/api/orders", async (CreateOrderRequest request, ClaimsPrincipal user, OrderDbContext db) =>
+app.MapPost("/api/orders", async (
+    CreateOrderRequest request,
+    ClaimsPrincipal user,
+    OrderDbContext db,
+    IHttpClientFactory httpClientFactory) =>
 {
     if (request.Items.Count == 0)
         return Results.BadRequest(new { message = "Cart is empty." });
+
+    if (request.Items.Any(i => i.Quantity <= 0))
+        return Results.BadRequest(new { message = "Quantity must be greater than zero." });
+
+    var productClient = httpClientFactory.CreateClient("ProductService");
+
+    async Task ReleaseStockAsync(int productId, int quantity)
+    {
+        var release = new HttpRequestMessage(HttpMethod.Post, $"/internal/products/{productId}/adjust-stock")
+        {
+            Content = JsonContent.Create(new AdjustStockRequest(quantity))
+        };
+        release.Headers.TryAddWithoutValidation("X-Internal-Service-Key", internalServiceKey);
+        await productClient.SendAsync(release);
+    }
+
+    // Prices, names and stock all come from ProductService — never from the client — so a
+    // tampered request body can't change what an order actually costs or oversell stock.
+    var orderItems = new List<OrderItem>();
+
+    foreach (var line in request.Items)
+    {
+        ProductLookupResponse? product;
+        try
+        {
+            product = await productClient.GetFromJsonAsync<ProductLookupResponse>($"/api/products/{line.ProductId}");
+        }
+        catch (HttpRequestException)
+        {
+            product = null;
+        }
+
+        if (product is null)
+        {
+            foreach (var reservedItem in orderItems)
+                await ReleaseStockAsync(reservedItem.ProductId, reservedItem.Quantity);
+            return Results.BadRequest(new { message = $"Unknown product {line.ProductId}." });
+        }
+
+        var reserveRequest = new HttpRequestMessage(HttpMethod.Post, $"/internal/products/{line.ProductId}/adjust-stock")
+        {
+            Content = JsonContent.Create(new AdjustStockRequest(-line.Quantity))
+        };
+        reserveRequest.Headers.TryAddWithoutValidation("X-Internal-Service-Key", internalServiceKey);
+
+        var reserveResponse = await productClient.SendAsync(reserveRequest);
+        if (reserveResponse.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            foreach (var reservedItem in orderItems)
+                await ReleaseStockAsync(reservedItem.ProductId, reservedItem.Quantity);
+            return Results.Conflict(new { message = $"Insufficient stock for {product.Name}." });
+        }
+        reserveResponse.EnsureSuccessStatusCode();
+
+        orderItems.Add(new OrderItem
+        {
+            ProductId = product.Id,
+            ProductName = product.Name,
+            UnitPrice = product.Price,
+            Quantity = line.Quantity
+        });
+    }
 
     var order = new Order
     {
         UserId = GetUserId(user),
         Status = "Pending",
-        TotalAmount = request.Items.Sum(i => i.UnitPrice * i.Quantity),
-        Items = request.Items.Select(i => new OrderItem
-        {
-            ProductId = i.ProductId,
-            ProductName = i.ProductName,
-            UnitPrice = i.UnitPrice,
-            Quantity = i.Quantity
-        }).ToList()
+        TotalAmount = orderItems.Sum(i => i.UnitPrice * i.Quantity),
+        Items = orderItems
     };
 
     db.Orders.Add(order);

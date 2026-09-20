@@ -11,7 +11,9 @@ public class TokenService(IConfiguration config)
     public (string Token, DateTime ExpiresAt) CreateToken(User user)
     {
         var jwtSection = config.GetSection("Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Key"]!));
+        var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException(
+            "Jwt:Key is not configured. Run 'dotnet user-secrets set \"Jwt:Key\" \"<value>\"' in this project for local dev, or set the Jwt__Key environment variable.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiresAt = DateTime.UtcNow.AddMinutes(double.Parse(jwtSection["ExpiresMinutes"] ?? "120"));
 

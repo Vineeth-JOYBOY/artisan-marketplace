@@ -1,4 +1,7 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using ArtisanMarketplace.ProductService.Data;
 using ArtisanMarketplace.ProductService.Models;
 
@@ -16,6 +19,29 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException(
+    "Jwt:Key is not configured. Run 'dotnet user-secrets set \"Jwt:Key\" \"<value>\"' in this project for local dev, or set the Jwt__Key environment variable.");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+builder.Services.AddAuthorization();
+
+var internalServiceKey = builder.Configuration["Internal:ServiceKey"] ?? throw new InvalidOperationException(
+    "Internal:ServiceKey is not configured. Run 'dotnet user-secrets set \"Internal:ServiceKey\" \"<value>\"' in this project for local dev, or set the Internal__ServiceKey environment variable.");
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -31,6 +57,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
 
 static ProductResponse ToResponse(Product p) => new(
     p.Id, p.Name, p.Description, p.Price, p.ImageUrl, p.StockQuantity,
@@ -82,7 +110,7 @@ app.MapPost("/api/products", async (ProductRequest request, ProductDbContext db)
     await db.Entry(product).Reference(p => p.Category).LoadAsync();
 
     return Results.Created($"/api/products/{product.Id}", ToResponse(product));
-});
+}).RequireAuthorization();
 
 app.MapPut("/api/products/{id:int}", async (int id, ProductRequest request, ProductDbContext db) =>
 {
@@ -99,7 +127,7 @@ app.MapPut("/api/products/{id:int}", async (int id, ProductRequest request, Prod
     await db.SaveChangesAsync();
     await db.Entry(product).Reference(p => p.Category).LoadAsync();
     return Results.Ok(ToResponse(product));
-});
+}).RequireAuthorization();
 
 app.MapDelete("/api/products/{id:int}", async (int id, ProductDbContext db) =>
 {
@@ -109,6 +137,37 @@ app.MapDelete("/api/products/{id:int}", async (int id, ProductDbContext db) =>
     db.Products.Remove(product);
     await db.SaveChangesAsync();
     return Results.NoContent();
+}).RequireAuthorization();
+
+// Service-to-service only: lives under /internal, which the gateway has no route for, so it
+// is unreachable from outside regardless of the key check below — that check is defense in
+// depth, not the only thing standing between the public internet and this endpoint.
+// OrderService reserves/releases stock with the shared key; Delta is negative to reserve,
+// positive to release on rollback.
+app.MapPost("/internal/products/{id:int}/adjust-stock", async (int id, AdjustStockRequest request, HttpContext httpContext, ProductDbContext db) =>
+{
+    var providedKey = httpContext.Request.Headers["X-Internal-Service-Key"].ToString();
+    if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(providedKey), Encoding.UTF8.GetBytes(internalServiceKey)))
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!await db.Products.AnyAsync(p => p.Id == id))
+        return Results.NotFound();
+
+    // A single conditional UPDATE, not read-then-write: the stock check and the decrement
+    // happen as one atomic statement, so concurrent requests can't race past each other and
+    // lose an update (which let 15 concurrent orders all "succeed" against 5 units of stock).
+    var rowsAffected = await db.Products
+        .Where(p => p.Id == id && p.StockQuantity + request.Delta >= 0)
+        .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.StockQuantity, p => p.StockQuantity + request.Delta));
+
+    if (rowsAffected == 0)
+        return Results.Conflict(new { message = "Insufficient stock." });
+
+    var product = await db.Products.AsNoTracking().FirstAsync(p => p.Id == id);
+    return Results.Ok(new StockResponse(product.Id, product.StockQuantity));
 });
 
 app.Run();
